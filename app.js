@@ -1,21 +1,40 @@
 const express = require('express');
-const cors = require('cors');
+const path = require('path');
 const app = express();
-const port = 3000;
 
-// Middleware
-app.use(cors());
 app.use(express.json());
 
-// Serve static files from "public" folder
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// (Optional) Example API endpoint
-app.get('/api/hello', (req, res) => {
-  res.json({ message: 'Hello from the API!' });
+let tasks = [];
+let nextId = 1;
+
+app.get('/api/tasks', (req, res) => {
+  res.json(tasks);
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+app.post('/api/tasks', (req, res) => {
+  const { task } = req.body;
+  if (!task || !task.trim()) {
+    return res.status(400).json({ error: 'Task text is required' });
+  }
+  const newTask = { id: nextId++, task: task.trim() };
+  tasks.push(newTask);
+  res.status(201).json(newTask);
 });
+
+app.delete('/api/tasks/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = tasks.findIndex(t => t.id === id);
+  if (index === -1) return res.status(404).json({ error: 'Task not found' });
+
+  tasks.splice(index, 1);
+  res.status(204).send();
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

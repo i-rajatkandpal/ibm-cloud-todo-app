@@ -1,89 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>To-Do App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Todo List</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f5f5f5;
+      background: linear-gradient(135deg, #e0eafc, #cfdef3 70%);
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-
+    .container {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.05);
+      padding: 2.5rem;
+      min-width: 340px;
+      max-width: 99vw;
+    }
     h1 {
-      color: #333;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: #2e466e;
+      font-weight: 700;
+      letter-spacing: 0.2rem;
     }
-
-    form {
-      margin-bottom: 20px;
+    #taskForm {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
     }
-
-    input[type="text"] {
-      padding: 8px;
-      width: 250px;
-      margin-right: 10px;
+    #taskInput {
+      flex: 1;
+      padding: 0.7rem;
+      border-radius: 8px;
+      border: 1.5px solid #94aec8;
+      font-size: 1.08rem;
+      outline: none;
+      transition: border 0.2s;
     }
-
-    button {
-      padding: 8px 12px;
+    #taskInput:focus {
+      border-color: #576fca;
     }
-
-    ul {
-      list-style-type: none;
+    button[type="submit"] {
+      background: #576fca;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 1.08rem;
+      height: 42px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button[type="submit"]:hover {
+      background: #3652aa;
+    }
+    ul#taskList {
+      list-style: none;
+      margin: 0;
       padding: 0;
     }
-
-    li {
-      background-color: white;
+    ul#taskList li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f6f8fa;
+      border-radius: 6px;
+      box-shadow: 0 0.5px 0.5px rgba(0,0,0,0.03);
       margin-bottom: 10px;
-      padding: 10px;
-      border-radius: 4px;
+      padding: 0.85rem 1rem;
+      font-size: 1.07rem;
+      transition: background 0.2s;
+    }
+    ul#taskList li:last-child {
+      margin-bottom: 0;
+    }
+    .remove-btn {
+      background: #e06758;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 0.35rem 0.9rem;
+      font-size: 0.97rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-left: 1.2rem;
+    }
+    .remove-btn:hover {
+      background: #bf2e1f;
     }
   </style>
 </head>
 <body>
-  <h1>To-Do List</h1>
-  <form id="todo-form">
-    <input type="text" id="taskInput" placeholder="Enter a task" required />
-    <button type="submit">Add Task</button>
-  </form>
-  <ul id="taskList"></ul>
-
+  <div class="container">
+    <h1>Todo List</h1>
+    <form id="taskForm" autocomplete="off">
+      <input type="text" id="taskInput" placeholder="Add a new task..." required />
+      <button type="submit">Add</button>
+    </form>
+    <ul id="taskList"></ul>
+  </div>
   <script>
-    const taskList = document.getElementById('taskList');
-    const form = document.getElementById('todo-form');
-    const taskInput = document.getElementById('taskInput');
+    const taskForm = document.getElementById("taskForm");
+    const taskInput = document.getElementById("taskInput");
+    const taskList = document.getElementById("taskList");
 
-    // Load tasks on page load
-    fetch('http://localhost:3000/tasks')
-      .then(res => res.json())
-      .then(data => {
-        data.forEach(task => addTaskToDOM(task.text));
+    async function loadTasks() {
+      const res = await fetch('/api/tasks');
+      const tasks = await res.json();
+      taskList.innerHTML = '';
+      tasks.forEach(({id, task}) => {
+        const li = document.createElement('li');
+        li.textContent = task;
+        const btn = document.createElement('button');
+        btn.className = 'remove-btn';
+        btn.textContent = 'Remove';
+        btn.addEventListener('click', () => removeTask(id));
+        li.appendChild(btn);
+        taskList.appendChild(li);
       });
+    }
 
-    form.addEventListener('submit', function(e) {
+    taskForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const taskText = taskInput.value;
-
-      fetch('http://localhost:3000/tasks', {
+      const newTask = taskInput.value.trim();
+      if (!newTask) return;
+      const res = await fetch('/api/tasks', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: taskText })
-      })
-      .then(res => res.json())
-      .then(data => {
-        addTaskToDOM(data.task.text);
-        taskInput.value = '';
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: newTask })
       });
+      if (res.ok) {
+        taskInput.value = '';
+        loadTasks();
+      } else {
+        alert('Error adding task');
+      }
     });
 
-    function addTaskToDOM(text) {
-      const li = document.createElement('li');
-      li.textContent = text;
-      taskList.appendChild(li);
+    async function removeTask(id) {
+      const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      if (res.ok) loadTasks();
+      else alert('Error removing task');
     }
+
+    // Load tasks on page load
+    loadTasks();
   </script>
 </body>
 </html>
